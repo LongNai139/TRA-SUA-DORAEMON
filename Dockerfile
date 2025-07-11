@@ -1,10 +1,9 @@
-# Build Stage
+﻿# Build Stage
 FROM mcr.microsoft.com/dotnet/sdk:7.0 AS build
 WORKDIR /src
 
 COPY *.sln .
-COPY DIHA/*.csproj ./DIHA/
-WORKDIR /src/DIHA
+COPY *.csproj .    # không cần thư mục con
 COPY . .
 RUN dotnet publish -c Release -o /app/out
 
