@@ -1,0 +1,252 @@
+﻿@model List<DIHA.Areas.Basket.Models.Data.BasketItem>
+
+@{
+    ViewData["Title"] = "Giỏ hàng";
+}
+
+<h2>Giỏ hàng của bạn</h2>
+@if (Model == null || Model.Count == 0)
+{
+    <p class="text-muted">Giỏ hàng đang trống.</p>
+}
+else
+{
+    <style>
+        .product-card {
+            background: #f9f9f7;
+            border-radius: 12px;
+            padding: 16px;
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .product-image {
+            width: 80px;
+            height: 80px;
+            border-radius: 8px;
+            object-fit: cover;
+        }
+
+        .summary-card {
+            background: #f9f9f7;
+            border-radius: 12px;
+            padding: 20px;
+        }
+
+        .basket-button {
+            background-color: #476520;
+            color: white;
+        }
+
+        .btn-outline-secondary {
+            padding: 0 6px;
+            font-size: 0.75rem;
+        }
+    </style>
+    <hr>
+    <div class="row">
+        <div class="col-md-8">
+            <div class="row">
+                @foreach (var product in Model)
+                {
+                    <div class="col-md-6 mb-3 product @product.IDDanhMuc"
+                         onclick="selectProduct('@product.TenSanpham', '@(Convert.ToDecimal(product.DonGia).ToString("N0"))')">
+                        <div class="product-card">
+                            <img src="@(string.IsNullOrEmpty(product.Anh) ? "/image/default.jpg" : product.Anh)" alt="@product.TenSanpham" class="product-image">
+                            <div class="flex-fill ms-3">
+                                <div><strong>@product.TenSanpham</strong></div>
+                                <div class="text-success">@(Convert.ToDecimal(product.DonGia).ToString("N0"))₫ X @product.SoLuong</div>
+                                @if (product.IDSanPham > 0)
+                                {
+                                    <form asp-area="Basket" asp-action="DeleteItem" asp-controller="Basket" method="post" class="d-inline">
+                                        <input type="hidden" name="id" value="@product.IDSanPham" />
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary mt-1">Hủy đặt hàng</button>
+                                    </form>
+                                }
+                            </div>
+                            <div class="fw-bold">@(Convert.ToDecimal(product.DonGia * product.SoLuong).ToString("N0"))₫</div>
+                        </div>
+                    </div>
+                }
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="summary-card">
+                <h5>Đơn hàng</h5>
+
+                @if (Model == null || !Model.Any())
+                {
+                    <div class="text-muted"><i>Giỏ hàng trống.</i></div>
+                }
+                else
+                {
+                    <ul class="list-unstyled small">
+                        @foreach (var item in Model)
+                        {
+                            var thanhTien = item.DonGia * item.SoLuong;
+                            <li class="mb-2 d-flex justify-content-between align-items-center border-bottom pb-2">
+                                <div>
+                                    <strong>@item.TenSanpham</strong><br />
+                                    <small>@(Convert.ToDecimal(item.DonGia).ToString("N0"))₫ × @item.SoLuong = @(Convert.ToDecimal(thanhTien).ToString("N0"))₫</small>
+                                </div>
+                                <div>
+                                    <form asp-area="Basket" asp-action="UpdateQuantity" asp-controller="Basket" method="post" class="d-inline">
+                                        <input type="hidden" name="id" value="@item.IDSanPham" />
+                                        <input type="hidden" name="type" value="decrease" />
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">–</button>
+                                    </form>
+                                    <form asp-area="Basket" asp-action="UpdateQuantity" asp-controller="Basket" method="post" class="d-inline">
+                                        <input type="hidden" name="id" value="@item.IDSanPham" />
+                                        <input type="hidden" name="type" value="increase" />
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">+</button>
+                                    </form>
+                                    <form asp-area="Basket" asp-action="DeleteItem" asp-controller="Basket" method="post" class="d-inline">
+                                        <input type="hidden" name="id" value="@item.IDSanPham" />
+                                        <button type="submit" class="btn btn-sm btn-outline-secondary">x</button>
+                                    </form>
+                                </div>
+                            </li>
+                        }
+                    </ul>
+
+
+                    <div class="d-flex justify-content-between fw-bold">
+                        <span>Total</span>
+                        <span>@Model.Sum(i => (i.DonGia ?? 0) * i.SoLuong).ToString("N0")₫</span>
+                    </div>
+                    <button class="btn basket-button w-100 mt-3" onclick="checkLoginBeforeContinue()">Continue to payment →</button>
+                }
+            </div>
+        </div>
+    </div>
+    <form id="invoiceForm" method="post" asp-controller="Invoice" asp-action="CreateInvoice" asp-area="Invoice">
+        <input type="hidden" name="paymentMethod" id="paymentMethodInput" />
+        <input type="hidden" name="shippingAddress" id="shippingAddressInput" />
+        <input type="hidden" name="shippingPhoneNumber" id="shippingPhoneNumberInput" />
+        <input type="hidden" name="tenKhach" id="tenKhachInput" value="@User.Identity.Name" />
+    </form>
+}
+
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    function filter(category) {
+        let items = document.querySelectorAll('.product');
+        items.forEach(item => {
+            if (category === 'all' || item.classList.contains(category)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        document.querySelectorAll('.btn-group button').forEach(btn => btn.classList.remove('active'));
+        const activeBtn = document.querySelector(`button[data-category="${category}"]`);
+        if (activeBtn) activeBtn.classList.add('active');
+    }
+
+    function parseMoney(str) {
+        return parseInt(str.replace(/[₫,.]/g, ''), 10);
+    }
+
+    function formatMoney(num) {
+        return num.toLocaleString('vi-VN') + "₫";
+    }
+
+    var isLoggedIn = @(User.Identity.IsAuthenticated.ToString().ToLower());
+
+    function checkLoginBeforeContinue() {
+        if (!isLoggedIn) {
+            Swal.fire({
+                icon: 'warning',
+                title: 'Chưa đăng nhập',
+                text: 'Vui lòng đăng nhập trước khi thanh toán!',
+                confirmButtonText: 'OK'
+            });
+        } else {
+            showPaymentOptions();
+        }
+    }
+
+            function showPaymentOptions() {
+        Swal.fire({
+            title: 'Chọn phương thức thanh toán',
+            input: 'radio',
+            inputOptions: {
+                cash: 'Tiền mặt',
+                bank: 'Chuyển khoản'
+            },
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'Bạn phải chọn một phương thức!';
+                }
+            },
+            confirmButtonText: 'Tiếp tục'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const selectedMethod = result.value;
+
+                Swal.fire({
+                    title: 'Nhập địa chỉ giao hàng',
+                    html: `<input type="text" id="shippingAddress" class="swal2-input" placeholder="Địa chỉ giao hàng">`,
+                    showCancelButton: true,
+                    confirmButtonText: 'Xác nhận địa chỉ giao hàng',
+                    preConfirm: () => {
+                        const address = document.getElementById('shippingAddress').value;
+                        if (!address) {
+                            Swal.showValidationMessage('Vui lòng nhập địa chỉ giao hàng!');
+                            return false;
+                        }
+                        return { address };
+                    }
+                }).then((addressResult) => {
+                    if (addressResult.isConfirmed) {
+                        Swal.fire({
+                            title: 'Nhập số điện thoại để nhận hàng',
+                            html: `<input type="tel" id="shippingPhoneNumber" class="swal2-input"
+                                    placeholder="Số điện thoại nhận hàng" maxlength="10">`,
+                            showCancelButton: true,
+                            confirmButtonText: 'Xác nhận số điện thoại nhận hàng',
+
+                            didOpen: () => {
+                                const input = document.getElementById('shippingPhoneNumber');
+                                input.addEventListener('input', function () {
+                                    this.value = this.value.replace(/[^0-9]/g, '');
+                                });
+                            },
+
+                            preConfirm: () => {
+                                const phoneNumber = document.getElementById('shippingPhoneNumber').value;
+                                if (!phoneNumber) {
+                                    Swal.showValidationMessage('Vui lòng nhập số điện thoại nhận hàng!');
+                                    return false;
+                                }
+                                if (!/^0\d{9}$/.test(phoneNumber)) {
+                                    Swal.showValidationMessage('Số điện thoại phải bắt đầu bằng số 0 và gồm đúng 10 chữ số!');
+                                    return false;
+                                }
+                                return { phoneNumber };
+                            }
+                        }).then((phoneNumberResult) => {
+                            if (phoneNumberResult.isConfirmed) {
+                                Swal.fire({
+                                    icon: 'success',
+                                    title: 'Đặt hàng thành công',
+                                    html: `<p><b>Cảm ơn bạn đã đặt hàng!</b></p>`,
+                                    confirmButtonText: 'OK'
+                                }).then(() => {
+                                    document.getElementById('paymentMethodInput').value = selectedMethod;
+                                    document.getElementById('shippingAddressInput').value = addressResult.value.address;
+                                    document.getElementById('shippingPhoneNumberInput').value = phoneNumberResult.value.phoneNumber;
+                                    document.getElementById('invoiceForm').submit();
+                                });
+                            }
+                        });
+                    }
+                });
+            }
+        });
+
+    }
+</script>

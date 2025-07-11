@@ -1,0 +1,90 @@
+﻿html {
+  font-size: 14px;
+}
+
+@media (min-width: 768px) {
+  html {
+    font-size: 16px;
+  }
+}
+
+.btn:focus, .btn:active:focus, .btn-link.nav-link:focus, .form-control:focus, .form-check-input:focus {
+  box-shadow: 0 0 0 0.1rem white, 0 0 0 0.25rem #258cfb;
+}
+
+html {
+  position: relative;
+  min-height: 100%;
+}
+
+body {
+  margin-bottom: 60px;
+}
+/* Cấu hình font size */
+html {
+    font-size: 14px;
+}
+
+@media (min-width: 768px) {
+    html {
+        font-size: 16px;
+    }
+}
+
+/* Navbar với hiệu ứng sáng dần */
+.app-navbar {
+    background: linear-gradient(to bottom, rgba(217, 231, 255, 0.9), rgba(255, 255, 255, 0.95));
+    backdrop-filter: blur(10px); /* Hiệu ứng mờ nhẹ */
+    padding: 15px 0;
+}
+
+/* Chỉnh màu chữ cho navbar */
+.navbar-light .navbar-nav .nav-link {
+    color: #333 !important;
+}
+
+/* Chỉnh chữ "Tài khoản" */
+.navbar-nav .nav-link.dropdown-toggle {
+    font-weight: bold;
+    font-size: 16px;
+}
+
+/* Dropdown menu */
+.navbar-nav .dropdown-menu {
+    background: white;
+    border-radius: 8px;
+    box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+    min-width: 200px;
+    padding: 10px 0;
+    border: none;
+    position: absolute;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 1050;
+}
+
+/* Hiệu ứng hover dropdown */
+.nav-item.dropdown:hover .dropdown-menu {
+    display: block;
+}
+
+/* Chỉnh chữ trong dropdown */
+.dropdown-item {
+    padding: 10px 15px;
+    font-size: 16px;
+    color: #333;
+}
+
+    /* Hiệu ứng hover */
+    .dropdown-item:hover {
+        background-color: #f5f5f5;
+    }
+
+/* Điều chỉnh cho mobile */
+@media (max-width: 768px) {
+    .dropdown-menu {
+        left: auto;
+        right: 0;
+        transform: none;
+    }
+}

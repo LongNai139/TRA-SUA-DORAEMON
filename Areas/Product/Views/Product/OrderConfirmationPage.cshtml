@@ -1,0 +1,184 @@
+﻿@using DIHA.Areas.Basket.Models.Data
+@using DIHA.Areas.Invoice.Models.Data
+@model List<HoaDon>
+
+@{
+    ViewData["Title"] = "Xác nhận đơn hàng";
+}
+
+<style>
+    .content {
+        margin-top: 10px;
+        background-color: #fff;
+        min-height: 100vh;
+    }
+
+    .tag {
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+    }
+
+    .tag-high {
+        background-color: #f8d7da;
+        color: #842029;
+    }
+
+    .tag-medium {
+        background-color: #fff3cd;
+        color: #664d03;
+    }
+
+    .tag-low {
+        background-color: #d1e7dd;
+        color: #0f5132;
+    }
+
+    .avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+</style>
+
+
+<div class="content">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4>Xác nhận đơn hàng</h4>
+        <div class="input-group" style="max-width: 300px;">
+            <input type="text" class="form-control" placeholder="Tìm đơn...">
+            <button class="btn btn-outline-secondary" type="button">Tìm</button>
+        </div>
+    </div>
+
+    <div class="table-responsive">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr class="text-center">
+                    <th>Stt</th>
+                    <th>Tên khách</th>
+                    <th>Món</th>
+                    <th>Thời gian đặt</th>
+                    <th>Địa chỉ giao</th>
+                    <th>SĐT nhận đơn</th>
+                    <th>Thanh toán</th>
+                    <th>Trạng thái</th>
+                    <th>Chức năng</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < Model.Count; i++)
+                {
+                    var item = Model[i];
+                    <tr class="text-center">
+                        <td>@((i + 1))</td>
+                        <td>@item.TenKhach</td>
+                        <td class="text-start" style="padding-left: 20px">
+                            <ul class="list-unstyled mb-0">
+                                @foreach (var ct in item.ChiTietHoaDons)
+                                {
+                                    <li>• @ct.SanPham?.TenSanpham x @ct.SoLuongMua</li>
+                                }
+                            </ul>
+                        </td>
+                        <td>@item.NgayMua.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>@item.DiaChiGiaoHang</td>
+                        <td>@item.SoDienThoaiNhanHang</td>
+                        <td>@(Convert.ToDecimal(item.TongTien).ToString("N0"))₫</td>
+                        <td>@item.TrangThai</td>
+                        <td>
+                            <button class="btn btn-sm btn-outline-success" onclick="showApproveOrderOption(@item.IDHoaDon)">Duyệt đơn</button>
+                            <button class="btn btn-sm btn-outline-danger" onclick="showCancelOrderOption(@item.IDHoaDon)">Hủy đơn</button>
+                            <a href="">Chi tiết</a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script>
+    function approveOrder(IDHoaDon, callback) {
+        $.ajax({
+            url: "/product_Controller/ApproveOrder",
+            type: "POST",
+            data: { IDHoaDon: IDHoaDon },
+            dataType: "json",
+            success: function (data, status) {
+                if (status === "success" && data) {
+                    console.log("Dữ liệu nhận được:", data);
+                    if (typeof callback === "function") {
+                        callback(data);
+                    }
+                }
+            },
+            error: function (error) {
+                console.error("Lỗi xảy ra:", error);
+            }
+        });
+    }
+
+    function showApproveOrderOption(IDHoaDon) {
+        Swal.fire({
+            title: 'Bạn có chắc muốn duyệt đơn này?',
+            icon: 'warning',
+            showCancelButton: true,
+            confirmButtonText: 'Duyệt',
+            cancelButtonText: 'Hủy'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                fetch(`/invoice_Controller/ApproveOrder?id=${IDHoaDon}`, {
+                    method: 'POST'
+                }).then(res => {
+                    if (res.ok) {
+                        Swal.fire('Đã duyệt thành công!', '', 'success')
+                            .then(() => location.reload());
+                    } else {
+                        Swal.fire('Duyệt đơn thất bại', '', 'error');
+                    }
+                });
+            }
+        });
+    }
+
+
+    function cancelOrder(IDHoaDon, callback) {
+        $.ajax({
+            url: "/product_Controller/CancelOrder",
+            type: "POST",
+            data: { IDHoaDon: IDHoaDon },
+            dataType: "json",
+            success: function (data, status) {
+                if (status === "success" && data) {
+                    console.log("Dữ liệu nhận được:", data);
+                    if (typeof callback === "function") {
+                        callback(data);
+                    }
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error("Lỗi xảy ra:", error);
+            }
+        });
+    }
+    function showCancelOrderOption(IDHoaDon){
+    Swal.fire({
+        title: 'Bạn có chắc chắn hủy đơn này?',
+        icon: 'question',
+        showCancelButton: true,
+        confirmButtonText: 'Duyệt',
+        cancelButtonText: 'Hủy'
+    }).then((result) => {
+        if (result.isConfirmed) {
+            cancelOrder(IDHoaDon, function (data) {
+                Swal.fire('Đã hủy!', data.message, 'success')
+                    .then(() => {
+                        location.reload();
+                    });
+            });
+        }
+    });
+    }
+</script>

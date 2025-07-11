@@ -1,0 +1,269 @@
+﻿@using Microsoft.EntityFrameworkCore
+@using System.Data
+@using DIHA.Areas.Category.Models.Data
+@using DIHA.Areas.Product.Models.Data
+@model List<DanhMuc>
+
+@inject AppDbContext dbContext
+@{
+    ViewData["Title"] = "Thong tin data";
+    var connect = dbContext.Database.GetDbConnection();
+    var dbname = connect.Database;
+    var canconnect = dbContext.Database.CanConnect();
+}
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success">
+        @TempData["Success"]
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger">
+        @TempData["Error"]
+    </div>
+}
+@if (TempData["SuccessMessage"] != null)
+{
+    <div class="alert alert-success">@TempData["SuccessMessage"]</div>
+}
+
+@if (TempData["ErrorMessage"] != null)
+{
+    <div class="alert alert-danger">@TempData["ErrorMessage"]</div>
+}
+@if (!canconnect)
+{
+    <p class="alert alert-danger">Không có khả năng kết nối tới database</p>
+}
+@if (ViewBag.ErrorMessage != null)
+{
+    <p class="text-danger">@ViewBag.ErrorMessage</p>
+}
+
+@if (canconnect)
+{
+    await dbContext.Database.OpenConnectionAsync();
+    var table = dbContext.Database.GetDbConnection().GetSchema("Tables");
+
+    <div class="container">
+        <div class="row g-4">
+            <table class="table table-bordered table-striped">
+                <thead class="table-primary text-center">
+                    <tr>
+                        <th>STT</th>
+                        <th>Tên danh mục</th>
+                        <th>Chức năng</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @if (Model != null && Model.Any())
+                    {
+                        int stt = 1;
+                        foreach (var item in Model)
+                        {
+                            <tr>
+                                <td class="text-center">@stt</td>
+                                <td>@item.TenDanhMuc</td>
+                                <td class="text-center">
+                                    <button onclick="SuaDanhMucModal('@item.IDDanhMuc' )"
+                                            class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i> Sửa
+                                    </button>
+                                    <button onclick="XoaDanhMucModal('@item.IDDanhMuc')"
+                                            class="btn btn-sm btn-outline-danger">
+                                        <i class="bi bi-trash"></i> Xóa
+                                    </button>
+                                </td>
+                            </tr>
+                            stt++;
+                        }
+                    }
+                    else
+                    {
+                        <tr>
+                            <td colspan="3" class="text-center text-muted">Không có danh mục nào</td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+            <button onclick="ThemDanhMucModal()"
+                    class="btn btn-sm btn-outline-danger">
+                <i class="bi bi-trash"></i> Thêm
+            </button>
+        </div>
+    </div>
+    <script>
+         function LoadDanhMucModal(id, callback, prefix) {
+            console.log("ID danh mục:", id);
+            $.ajax({
+                url: "/category_Controller/GetbyCategoryID",
+                type: "GET",
+                data: { id: id },
+                dataType: "json",
+                success: function (data, status) {
+                    if (status === "success" && data) {
+                        console.log("Dữ liệu nhận được:", data);
+
+                        // Đảm bảo tên thuộc tính đúng với JSON trả về
+                        $("#" + prefix + "IDDanhMucHidden").val(data.idDanhMuc);
+                        $("#" + prefix + "TenDanhMuc").val(data.tenDanhMuc);
+
+                        if (callback) callback();
+                    }
+                },
+                error: function (xhr, status, error) {
+                    console.error("Lỗi xảy ra:", error);
+                }
+            });
+        }
+        function ResetModalFields(prefix) {
+            $("#" + prefix + "IDDanhMuc").val("");
+            $("#" + prefix + "TenDanhMuc").val("");
+        }
+        function ThemDanhMucModal() {
+            ResetModalFields("Them");
+            $('#ThemDanhMucModal .modal-title').html("Thêm danh mục mới");
+            $('#ThemDanhMucModal').modal('show');
+        }
+        function SuaDanhMucModal(id) {
+            LoadDanhMucModal(id, function () {
+                var TenDanhMuc = $("#" + "SuaTenDanhMuc").val();
+                var title = "Chỉnh sửa danh mục - " + TenDanhMuc;
+
+                $('#SuaDanhMucModal .modal-title').html(title);
+                $('#SuaDanhMucModal').modal('show');
+            }, "Sua");
+        }
+         function XoaDanhMucModal(id) {
+            $('.modal-title').html("Bạn đang xóa danh mục");
+            LoadDanhMucModal(id, function () {
+                $('#XoaDanhMucModal').modal('show');
+            }, "Xoa");
+        }
+        function ShowCategoryModal(event, id) {
+            if (event.target.closest('button') || event.target.closest('a')) {
+                return;
+            }
+            else {
+                SuaDanhMucModal(id);
+            }
+        }
+        $(document).ready(function () {
+            var urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get("openModal") === "true") {
+                $('#ThemDanhMucModal').modal('show');
+            }
+        });
+
+    </script>
+    <div class="modal fade" id="SuaDanhMucModal">
+        <div class="modal-dialog modal-lg">
+            <form action="/category_Controller/PostEditCategory" method="post" id="SuaDanhMucForm" enctype="multipart/form-data">
+                <div class="modal-content shadow-lg">
+                    <div class="modal-header">
+                        <h4 class="modal-title fw-bold">
+                            <i class="fas fa-edit"></i> Chỉnh sửa danh mục
+                        </h4>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+                    <div class="modal-body">
+                        <div class="row g-3">
+                            <div class="col-md-7">
+                                <div class="row g-3">
+                                    <div class="col-md-12">
+                                        <label for="SuaTenDanhMuc" class="form-label fw-semibold">Tên danh mục</label>
+                                        <input type="text" class="form-control" id="SuaTenDanhMuc" name="SuaTenDanhMuc" required />
+                                    </div>                                  
+                                    <div class="col-md-6">
+                                        <input type="hidden" id="SuaIDDanhMucHidden" name="IDDanhMuc" />
+                                    </div>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+                    <div class="modal-footer">
+                        <button type="submit" class="btn btn-success px-4 rounded-pill">
+                            <i class="fas fa-save"></i> Xác nhận
+                        </button>
+                        <button type="button" class="btn btn-secondary px-4 rounded-pill" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Đóng
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="modal fade" id="ThemDanhMucModal" tabindex="-1" aria-labelledby="ThemDanhMucModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered modal-lg">
+            <form action="/category_Controller/CreateCategory" method="post">
+                <div class="modal-content shadow-lg rounded-3">
+                    <!-- Modal Header -->
+                    <div class="modal-header bg-primary text-white">
+                        <h4 class="modal-title fw-bold">Thêm danh mục mới</h4>
+                        <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="modal-body">
+                        @if (TempData["Error"] != null)
+                        {
+                            <div class="alert alert-danger">
+                                @TempData["Error"]
+                            </div>
+                        }
+
+                        <div class="row g-3">
+                            <div class="col-md-6">
+                                <label for="TenDanhMuc" class="form-label fw-semibold">Tên danh mục</label>
+                                <input type="text" class="form-control rounded-pill" id="ThemTenDanhMuc" name="TenDanhMuc" required />
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer">
+                        <button type="submit" id="btn-them" class="btn btn-primary px-4 rounded-pill">
+                            <i class="fas fa-save"></i> Xác nhận
+                        </button>
+                        <button type="button" class="btn btn-danger px-4 rounded-pill" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Đóng
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+    <div class="modal fade" id="XoaDanhMucModal" tabindex="-1" aria-labelledby="XoaDanhMucModalLabel" aria-hidden="true">
+        <div class="modal-dialog modal-dialog-centered">
+            <form action="/category_Controller/DeleteCategoryConfirmed" method="post">
+                <div class="modal-content">
+                    <!-- Modal Header -->
+                    <div class="modal-header bg-danger text-white">
+                        <h5 class="modal-title" id="XoaDanhMucModalLabel">
+                            <i class="fas fa-exclamation-triangle"></i> Xác nhận xóa sản phẩm
+                        </h5>
+                        <button type="button" class="btn-close text-white" data-bs-dismiss="modal"></button>
+                    </div>
+
+                    <!-- Modal Body -->
+                    <div class="modal-body text-center">
+                        <i class="fas fa-trash-alt text-danger" style="font-size: 50px;"></i>
+                        <p class="mt-3">Bạn có chắc chắn muốn xóa danh mục này không?</p>
+                        <input type="hidden" id="XoaIDDanhMucHidden" name="IDDanhMuc" required />
+                    </div>
+
+                    <!-- Modal Footer -->
+                    <div class="modal-footer d-flex justify-content-center">
+                        <button type="submit" class="btn btn-danger px-4">
+                            <i class="fas fa-check"></i> Xóa
+                        </button>
+                        <button type="button" class="btn btn-secondary px-4" data-bs-dismiss="modal">
+                            <i class="fas fa-times"></i> Hủy
+                        </button>
+                    </div>
+                </div>
+            </form>
+        </div>
+    </div>
+}

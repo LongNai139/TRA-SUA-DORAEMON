@@ -1,0 +1,382 @@
+﻿@using Microsoft.EntityFrameworkCore
+@using System.Data
+@using DIHA.Areas.Category.Models.Data
+@using DIHA.Areas.Product.Models.Data
+@using DIHA.Areas.Basket.Models.Data
+@model List<SanPham>
+
+@{
+    ViewData["Title"] = "Doraemon";
+}
+
+<div class="container py-4">
+    <div class="d-flex justify-content-end mb-3">
+        <input type="text" class="form-control w-25" placeholder="Search">
+        <button class="btn btn-dark ms-2"><i class="fas fa-search"></i></button>
+        <a asp-area="Basket" asp-controller="Basket" asp-action="Index" class="btn btn-dark ms-2">
+            <i class="fas fa-shopping-cart"><span class="badge bg-light text-dark">@ViewBag.TotalCartItems</span></i>          
+        </a>
+    </div>
+    <div class="row">
+        @foreach (var product in Model)
+        {
+            <div class="col-md-4 mb-4">
+                <div class="product-card text-center border p-2 h-100">
+                    <img src="@(string.IsNullOrEmpty(product.Anh) ? "/image/default.jpg" : product.Anh)" class="img-fluid" alt="@product.TenSanpham">
+                    <h5 class="mt-2 text-dark">@product.TenSanpham</h5>
+                    <p class="text-success fw-bold">@(Convert.ToDecimal(product.DonGia).ToString("N0"))₫</p>
+                    <form asp-action="MuaNgay" asp-controller="Cart" method="post" class="flex-grow-1">
+                        <input type="hidden" id="XemIDSanPhamHidden" name="IDSanPham">
+                        <button type="submit" class="btn btn-danger w-100 rounded-pill">
+                            <i class="fas fa-money-bill-wave"></i> Mua ngay
+                        </button>
+                    </form>
+                    <button class="btn btn-secondary w-100 rounded-pill"
+                            onclick="addToCart(@product.IDSanPham, '@product.TenSanpham', @product.DonGia, '@product.Anh', @product.IDDanhMuc)">
+                        <i class="fas fa-shopping-cart"></i> Thêm vào giỏ hàng
+                    </button>
+                </div>
+            </div>
+        }
+    </div>
+</div>
+
+<style>
+    #cartToggle {
+        position: fixed;
+        top: 30%;
+        right: 0;
+        background-color: #7bc043;
+        color: white;
+        padding: 10px 15px;
+        border-radius: 8px 0 0 8px;
+        cursor: pointer;
+        z-index: 1050;
+    }
+
+    /* Panel giỏ hàng */
+    #cartPanel {
+        position: fixed;
+        top: 0;
+        right: -350px;
+        width: 350px;
+        height: 100%;
+        background: #f8f9fa;
+        box-shadow: -2px 0 5px rgba(0, 0, 0, 0.3);
+        transition: right 0.3s ease;
+        z-index: 1040;
+        padding: 20px;
+        overflow-y: auto;
+    }
+
+        #cartPanel.active {
+            right: 0;
+        }
+
+    .cart-header {
+        background-color: #7bc043;
+        color: white;
+        padding: 10px;
+        font-size: 18px;
+        font-weight: bold;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        border-radius: 6px;
+    }
+
+    .cart-item {
+        display: flex;
+        align-items: center;
+        margin-top: 15px;
+        border-bottom: 1px solid #ddd;
+        padding-bottom: 10px;
+    }
+
+        .cart-item img {
+            width: 50px;
+            height: 50px;
+            object-fit: cover;
+            margin-right: 10px;
+        }
+
+    .cart-qty {
+        display: flex;
+        align-items: center;
+        gap: 10px;
+        margin-top: 5px;
+    }
+
+        .cart-qty button {
+            border: none;
+            background-color: #e0e0e0;
+            border-radius: 50%;
+            width: 30px;
+            height: 30px;
+        }
+
+    .order-btn {
+        width: 100%;
+        background-color: #7bc043;
+        border: none;
+        padding: 10px;
+        color: white;
+        font-size: 16px;
+        margin-top: 20px;
+        border-radius: 20px;
+    }
+
+    .product-card {
+        background: #fff;
+        border-radius: 8px;
+        box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        padding: 15px;
+        transition: 0.3s;
+    }
+
+        .product-card:hover {
+            box-shadow: 0 4px 10px rgba(0, 0, 0, 0.2);
+        }
+
+        .product-card img {
+            max-height: 180px;
+            object-fit: contain;
+        }
+
+    .btn-warning {
+        background: #c49a6c;
+        border: none;
+    }
+
+        .btn-warning:hover {
+            background: #a3754f;
+        }
+
+    .btn-secondary {
+        background-color: #ffff;
+        border: none;
+        color: black !important; /* Chỉnh màu chữ thành đen */
+    }
+
+        .btn-secondary:hover {
+            background-color: #ffff;
+            color: black !important; /* Giữ màu đen khi hover */
+        }
+
+</style>
+
+    <script>
+    function toggleCart() {
+        document.getElementById("cartPanel").classList.toggle("active");
+      }
+
+
+
+            function DinhDangGia(gia) {
+        return gia.toLocaleString('vi-VN') + '₫';
+    }
+
+    
+
+    function LoadSanPhamModal(IDSanPham, callback, prefix) {
+        console.log("ID sản phẩm:", IDSanPham);
+
+        $.ajax({
+            url: "/product_Controller/LaySanPhamTheoID",
+            type: "GET",
+            data: { IDSanPham: IDSanPham },
+            dataType: "json",
+            success: function (data, status) {
+                if (status === "success" && data) {
+                    console.log("Dữ liệu nhận được:", data);
+
+                    // Gán thông tin sản phẩm vào modal
+                    $("#XemIDSanPhamHidden").val(data.iDsanpham);
+                    $("#XemTenSanPham").text(data.tensanpham);
+                    $("#XemDonGia").text(data.dongia + "₫");
+
+                    // Hiển thị ảnh sản phẩm
+                    if (data.anh && data.anh.trim() !== "") {
+                        $("#SuaAnhHienTai").attr("src", data.anh);
+                    } else {
+                        $("#SuaAnhHienTai").attr("src", "/image/default.jpg");
+                    }
+
+                    if (callback) callback();
+                }
+            },
+            error: function (xhr, status, error) {
+                console.error("Lỗi xảy ra:", error);
+            }
+        });
+    }
+        function ResetModalFields(prefix) {
+            $("#" + prefix + "IDSanPham").val("");
+            $("#" + prefix + "TenSanPham").val("");
+            $("#" + prefix + "DonGia").val("");
+            $("#" + prefix + "Anh").val("");
+        }
+    function XemSanPhamModal(id) {
+        LoadSanPhamModal(id, function () {
+            $('#XemSanPhamModal').modal('show');
+        }, "Xem");
+    }
+        function ShowProductlModal(event, id) {
+            if (event.target.closest('button') || event.target.closest('a')) {
+                return;
+            }
+            else {
+                XemSanPhamModal(id);
+            }
+        }
+        $(document).ready(function () {
+            var urlParams = new URLSearchParams(window.location.search);
+            if (urlParams.get("openModal") === "true") {
+                $('#XemSanPhamModal').modal('show');
+            }
+        });
+        function GiamSoLuong() {
+        let input = document.getElementById('SoLuongSanPham');
+        let value = parseInt(input.value);
+        if (value > 1) input.value = value - 1;
+    }
+
+    function TangSoLuong() {
+        let input = document.getElementById('SoLuongSanPham');
+        let value = parseInt(input.value);
+        input.value = value + 1;
+    }
+
+    function addToCart(id, ten, gia, anh, idDanhMuc) {
+        $.ajax({
+            url: '/basket_Controller/AddToCart',
+            type: 'POST',
+            data: {
+                id: id,
+                ten: ten,
+                gia: gia,
+                anh: anh,
+                idDanhMuc: idDanhMuc
+            },
+            success: function (response) {
+                if (response.success) {
+                    // ✅ Hiển thị thông báo bằng SweetAlert
+                    Swal.fire({
+                        icon: 'success',
+                        title: 'Thêm vào giỏ hàng!',
+                        text: response.message,
+                        timer: 1500,
+                        showConfirmButton: false
+                    });
+
+                    // ✅ Cập nhật số lượng ở badge
+                    $('.fa-shopping-cart .badge').text(response.count);
+                }
+            },
+            error: function () {
+                Swal.fire('Lỗi', 'Không thể thêm vào giỏ hàng', 'error');
+            }
+        });
+    }
+    </script>
+<!-- Thêm SweetAlert2 nếu chưa có -->
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<style>
+    .quantity-container {
+        display: flex;
+        align-items: center;
+        border: 1px solid #ccc; /* Viền bao quanh */
+        border-radius: 5px; /* Bo góc tổng thể */
+        overflow: hidden; /* Đảm bảo không bị lệch */
+        width: fit-content;
+    }
+
+    .quantity-btn {
+        width: 40px;
+        height: 38px;
+        text-align: center;
+        border: none;
+        background-color: #f8f9fa;
+        font-size: 18px;
+        font-weight: bold;
+    }
+
+        .quantity-btn:first-child {
+            border-right: 1px solid #ccc;
+            border-radius: 5px 0 0 5px;
+        }
+
+        .quantity-btn:last-child {
+            border-left: 1px solid #ccc;
+            border-radius: 0 5px 5px 0;
+        }
+
+    .quantity-input {
+        width: 50px;
+        height: 38px;
+        text-align: center;
+        border: none;
+        font-weight: bold;
+        outline: none;
+    }
+
+        .quantity-btn:focus,
+        .quantity-input:focus {
+            outline: none;
+            box-shadow: none;
+        }
+</style>
+<div class="modal fade" id="XemSanPhamModal">
+    <div class="modal-dialog modal-lg">
+        <div class="modal-content shadow-lg">
+            <!-- Header -->
+            <div class="modal-header border-0">
+                <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+            </div>
+
+            <!-- Body -->
+            <div class="modal-body">
+                <div class="row align-items-center">
+                    <div class="col-md-5 text-center">
+                        <img id="SuaAnhHienTai" class="img-fluid img-thumbnail rounded shadow" />
+                    </div>
+                    <div class="col-md-7">
+                        <h3 id="XemTenSanPham" class="fw-bold"></h3>
+                        <div class="d-flex justify-content-between align-items-center mb-3">
+                            <p id="XemDonGia" class="text-danger fw-bold fs-4 mb-0"></p>
+                            <div class="d-flex align-items-center">
+                                <p class="me-2 mb-0 align-middle" style="line-height: 38px;">Số lượng:</p>
+                                <div class="d-flex align-items-center quantity-container">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm quantity-btn" onclick="GiamSoLuong()">-</button>
+                                    <input type="text" id="SoLuongSanPham" class="form-control text-center quantity-input" value="1">
+                                    <button type="button" class="btn btn-outline-secondary btn-sm quantity-btn" onclick="TangSoLuong()">+</button>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="d-flex gap-3 mt-4">
+                            <form asp-action="AddToCart" asp-controller="basket_Controller" method="post" class="flex-grow-1">
+                                <input type="hidden" id="XemIDSanPhamHidden" name="IDSanPham">
+                                <button type="submit" class="btn btn-secondary w-100 rounded-pill"
+                                        style="background-color: #28a745; color: white !important;">
+                                    <i class="fas fa-shopping-cart"></i> Thêm vào giỏ hàng
+                                </button>
+                            </form>
+                            <form asp-action="MuaNgay" asp-controller="Cart" method="post" class="flex-grow-1">
+                                <input type="hidden" id="XemIDSanPhamHidden" name="IDSanPham">
+                                <button type="submit" class="btn btn-danger w-100 rounded-pill">
+                                    <i class="fas fa-money-bill-wave"></i> Mua ngay
+                                </button>
+                            </form>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <div class="modal-footer border-0">
+                <input type="hidden" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></<input>
+            </div>
+        </div>
+    </div>
+</div>
+
+
+

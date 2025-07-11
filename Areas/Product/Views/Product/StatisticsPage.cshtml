@@ -1,0 +1,536 @@
+﻿@using DIHA.Areas.Basket.Models.Data
+@using DIHA.Areas.Invoice.Models.Data
+@model List<HoaDon>
+
+@{
+    ViewData["Title"] = "Xác nhận đơn hàng";
+}
+
+<style>
+    .content {
+        margin-top: 10px;
+        background-color: #fff;
+        min-height: 100vh;
+    }
+
+    .tag {
+        padding: 3px 8px;
+        border-radius: 12px;
+        font-size: 0.75rem;
+    }
+
+    .tag-high {
+        background-color: #f8d7da;
+        color: #842029;
+    }
+
+    .tag-medium {
+        background-color: #fff3cd;
+        color: #664d03;
+    }
+
+    .tag-low {
+        background-color: #d1e7dd;
+        color: #0f5132;
+    }
+
+    .avatar {
+        width: 30px;
+        height: 30px;
+        border-radius: 50%;
+        object-fit: cover;
+    }
+
+    thead th {
+        position: sticky;
+        top: 0;
+        background-color: #f8f9fa; /* cùng màu với .table-light */
+        z-index: 2;
+    }
+</style>
+
+
+<div class="content">
+    <div class="d-flex justify-content-between align-items-center mb-3">
+        <h4>Đơn hàng gần đây</h4>
+        <div class="input-group" style="max-width: 300px;">
+            <input type="text" class="form-control" id="timDonInput" placeholder="Tìm đơn...">
+            <button class="btn btn-outline-secondary" type="button" onclick="timDon()">Tìm</button>
+        </div>
+    </div>
+
+    <div class="table-responsive" style="max-height: 400px; overflow-y: auto;">
+        <table class="table table-hover align-middle">
+            <thead class="table-light">
+                <tr class="text-center">
+                    <th>Stt</th>
+                    <th>Tên khách</th>
+                    <th>Món</th>
+                    <th>Thời gian đặt</th>
+                    <th>Địa chỉ giao</th>
+                    <th>SĐT nhận đơn</th>
+                    <th>Thanh toán</th>
+                    <th>Trạng thái</th>
+                    <th>Người duyệt</th>
+                </tr>
+            </thead>
+            <tbody>
+                @for (int i = 0; i < Model.Count; i++)
+                {
+                    var item = Model[i];
+                    <tr class="text-center">
+                        <td>@((i + 1))</td>
+                        <td>@item.TenKhach</td>
+                        <td class="text-start" style="padding-left: 20px">
+                            <ul class="list-unstyled mb-0">
+                                @foreach (var ct in item.ChiTietHoaDons)
+                                {
+                                    <li>• @ct.SanPham?.TenSanpham x @ct.SoLuongMua</li>
+                                }
+                            </ul>
+                        </td>
+                        <td>@item.NgayMua.ToString("dd/MM/yyyy HH:mm")</td>
+                        <td>@item.DiaChiGiaoHang</td>
+                        <td>@item.SoDienThoaiNhanHang</td>
+                        <td>@(Convert.ToDecimal(item.TongTien).ToString("N0"))₫</td>
+                        <td>@item.TrangThai</td>
+                        <td>@item.NguoiDuyet</td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+    <h4>Thống kê</h4>
+    <div class="mb-3">
+        <button class="btn btn-outline-success" id="btnNgay">Ngày</button>
+        <button class="btn btn-outline-success" id="btnThang">Tháng</button>
+        <button class="btn btn-outline-success" id="btnToanBo">Toàn bộ</button>
+        <button class="btn btn-outline-success" id="btnTuChon" onclick="chonNgay()">Tự chọn</button>
+    </div>
+
+    <div class="container mt-4">
+        <!-- Tổng quan -->
+        <div class="row mb-4">
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-title">Tổng đơn hàng</h6>
+                        <h3><span id="totalOrders"></span></h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-title">Tổng số món</h6>
+                        <h3><span id="totalItems"></span></h3>
+                    </div>
+                </div>
+            </div>
+            <div class="col-md-4">
+                <div class="card text-center">
+                    <div class="card-body">
+                        <h6 class="card-title">Tổng doanh thu</h6>
+                        <h3><span id="totalRevenue"></span></h3>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Biểu đồ & Top sản phẩm -->
+        <div class="row mb-4">
+            <div class="col-md-8">
+                <h3 class="mb-3">Biểu đồ thống kê</h3>
+
+                <div id="chartNgay" class="card mb-3" style="display: none;">
+                    <div class="card-body">
+                        <h5 class="card-title text-center">Doanh thu theo khung giờ hôm nay</h5>
+                        <canvas id="lineChartNgay"></canvas>
+                    </div>
+                </div>
+
+                <div id="chartThang" class="card mb-3" style="display: none;">
+                    <div class="card-body">
+                        <h5 class="card-title text-center">Doanh thu theo từng ngày trong tháng</h5>
+                        <canvas id="lineChartThang"></canvas>
+                    </div>
+                </div>
+
+                <div id="chartTuChon" class="card mb-3" style="display: none;">
+                    <div class="card-body">
+                        <h5 class="card-title text-center">Doanh thu theo ngày đã chọn</h5>
+                        <canvas id="lineChartTuChon"></canvas>
+                    </div>
+                </div>
+
+                <div id="chartToanBo" class="card" style="display: none;">
+                    <div class="card-body">
+                        <h5 class="card-title text-center">Doanh thu từ lúc mở cửa hàng</h5>
+                        <canvas id="lineChartToanBo"></canvas>
+                    </div>
+                </div>
+            </div>
+
+            <div class="col-md-4">
+                <h3 class="mb-3">Xếp hạng bán chạy</h3>
+
+                <div class="card mb-3">
+                    <div class="card-body text-center">
+                        <h6 class="card-title">Tổng đơn hàng</h6>
+                        <h3><span>@Model.Count(i => i.TrangThai == "Đã duyệt")</span></h3>
+                    </div>
+                </div>
+
+                <div class="card">
+                    <div class="card-body">
+                        <h6 class="card-title">Top sản phẩm</h6>
+                        <table class="table table-sm table-bordered table-hover mb-0">
+                            <thead class="table-light text-center">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Tên sản phẩm</th>
+                                    <th>Đã bán</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topSanPhamBody" class="text-center">
+                                <!-- JS render -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- Top khách hàng & Bar chart -->
+        <div class="row">
+            <div class="col-md-6">
+                <div class="card h-100">
+                    <div class="card-body">
+                        <h6 class="card-title">Top khách hàng</h6>
+                        <table class="table table-sm table-bordered table-hover mb-0">
+                            <thead class="table-light text-center">
+                                <tr>
+                                    <th>#</th>
+                                    <th>Tên khách hàng</th>
+                                    <th>Đã mua</th>
+                                </tr>
+                            </thead>
+                            <tbody id="topKhachHangBody" class="text-center">
+                                <!-- JS render -->
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+</div>
+<script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+
+    let chartNgayRendered = false;
+    let chartThangRendered = false;
+    let chartToanBoRendered = false;
+    let chartTuChonRendered = false;
+
+    function updateStatistics(tongDon, tongMon, tongTien) {
+        document.getElementById('totalOrders').innerText = tongDon;
+        document.getElementById('totalItems').innerText = tongMon;
+        document.getElementById('totalRevenue').innerText = tongTien.toLocaleString('vi-VN') + ' đ';
+    }
+
+
+
+    // Hàm hiển thị đúng biểu đồ
+    function showChart(chartId) {
+        document.getElementById('chartNgay').style.display = 'none';
+        document.getElementById('chartThang').style.display = 'none';
+        document.getElementById('chartToanBo').style.display = 'none';
+        document.getElementById('chartTuChon').style.display = 'none';
+
+        document.getElementById(chartId).style.display = 'block';
+    }
+
+    // Biểu đồ theo ngày
+    document.getElementById('btnNgay').addEventListener('click', () => {
+        showChart('chartNgay');
+
+        fetch('/product_Controller/DoanhThuTheoNgay')
+            .then(response => response.json())
+            .then(data => {
+                const labels = data.map(item => item.khungGio);
+                const doanhThu = data.map(item => item.doanhThu);
+
+                if (!chartNgayRendered) {
+                    const ctx = document.getElementById('lineChartNgay').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Doanh thu theo khung giờ (VNĐ)',
+                                data: doanhThu,
+                                borderColor: 'green',
+                                backgroundColor: 'rgba(0,128,0,0.1)',
+                                tension: 0.3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { display: true, position: 'top' },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (context) {
+                                            return context.dataset.label + ': ' +
+                                                context.formattedValue.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' đ';
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: { title: { display: true, text: 'Khung giờ trong ngày' } },
+                                y: { beginAtZero: true, title: { display: true, text: 'Doanh thu (VNĐ)' } }
+                            }
+                        }
+                    });
+
+                    chartNgayRendered = true;
+                }
+
+                const tongDoanhThu = data.reduce((sum, item) => sum + item.doanhThu, 0);
+                const tongDon = data.reduce((sum, item) => sum + (item.soDon || 0), 0);
+                const tongMon = data.reduce((sum, item) => sum + (item.soMon || 0), 0);
+                updateStatistics(tongDon, tongMon, tongDoanhThu);
+            });
+    });
+
+
+    // Biểu đồ theo tháng
+    document.getElementById('btnThang').addEventListener('click', () => {
+        showChart('chartThang');
+
+        fetch('/product_Controller/DoanhThuTheoThang')
+            .then(response => response.json())
+            .then(data => {
+                const labels = data.map(item => `${item.ngay}`);
+                const doanhThu = data.map(item => item.doanhThu);
+
+                if (!chartThangRendered) {
+                    const ctx = document.getElementById('lineChartThang').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Doanh thu theo ngày (VNĐ)',
+                                data: doanhThu,
+                                borderColor: 'blue',
+                                backgroundColor: 'rgba(0,0,255,0.1)',
+                                tension: 0.3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { display: true, position: 'top' },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (context) {
+                                            return context.dataset.label + ': ' +
+                                                context.formattedValue.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' đ';
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: { title: { display: true, text: 'Ngày trong tháng' } },
+                                y: { beginAtZero: true, title: { display: true, text: 'Doanh thu (VNĐ)' } }
+                            }
+                        }
+                    });
+
+                    chartThangRendered = true;
+                }
+
+                const tongDoanhThu = data.reduce((sum, item) => sum + item.doanhThu, 0);
+                const tongDon = data.reduce((sum, item) => sum + (item.soDon || 0), 0);
+                const tongMon = data.reduce((sum, item) => sum + (item.soMon || 0), 0);
+                updateStatistics(tongDon, tongMon, tongDoanhThu);
+            });
+    });
+
+
+    function chonNgay() {
+        Swal.fire({
+            title: 'Chọn ngày',
+            html: `
+                <input type="date" id="ngayBatDau" class="swal2-input" placeholder="Ngày bắt đầu">
+                <input type="date" id="ngayKetThuc" class="swal2-input" placeholder="Ngày kết thúc">
+            `,
+            focusConfirm: false,
+            confirmButtonText: 'Xem thống kê',
+            preConfirm: () => {
+                const ngayBatDau = document.getElementById('ngayBatDau').value;
+                const ngayKetThuc = document.getElementById('ngayKetThuc').value;
+                if (!ngayBatDau || !ngayKetThuc) {
+                    Swal.showValidationMessage('Vui lòng chọn cả hai ngày');
+                    return false;
+                }
+                return { ngayBatDau, ngayKetThuc };
+            }
+        }).then((result) => {
+            if (result.isConfirmed) {
+                showChart('chartTuChon');
+
+                fetch(`/product_Controller/DoanhThuTheoNgayTuChon?batDau=${result.value.ngayBatDau}&ketThuc=${result.value.ngayKetThuc}`)
+                    .then(response => response.json())
+                    .then(data => {
+                        const labels = data.map(item => `${item.ngay}`);
+                        const doanhThu = data.map(item => item.doanhThu);
+
+                        if (!chartTuChonRendered) {
+                            const ctx = document.getElementById('lineChartTuChon').getContext('2d');
+                            new Chart(ctx, {
+                                type: 'line',
+                                data: {
+                                    labels: labels,
+                                    datasets: [{
+                                        label: 'Doanh thu theo ngày tự chọn (VNĐ)',
+                                        data: doanhThu,
+                                        borderColor: 'red',
+                                        backgroundColor: 'rgba(255,0,0,0.1)',
+                                        tension: 0.3
+                                    }]
+                                },
+                                options: {
+                                    responsive: true,
+                                    plugins: {
+                                        legend: { display: true, position: 'top' },
+                                        tooltip: {
+                                            callbacks: {
+                                                label: function (context) {
+                                                    return context.dataset.label + ': ' +
+                                                        context.formattedValue.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' đ';
+                                                }
+                                            }
+                                        }
+                                    },
+                                    scales: {
+                                        x: { title: { display: true, text: 'Ngày được chọn' } },
+                                        y: { beginAtZero: true, title: { display: true, text: 'Doanh thu (VNĐ)' } }
+                                    }
+                                }
+                            });
+
+                            chartTuChonRendered = true;
+                        }
+
+                        const tongDoanhThu = data.reduce((sum, item) => sum + item.doanhThu, 0);
+                        const tongDon = data.reduce((sum, item) => sum + (item.soDon || 0), 0);
+                        const tongMon = data.reduce((sum, item) => sum + (item.soMon || 0), 0);
+                        updateStatistics(tongDon, tongMon, tongDoanhThu);
+                    });
+            }
+        });
+    }
+
+    document.getElementById('btnToanBo').addEventListener('click', () => {
+        showChart('chartToanBo');
+
+        fetch('/product_Controller/DoanhThuToanBo')
+            .then(response => response.json())
+            .then(data => {
+                const labels = data.map(item => `${item.ngay}`);
+                const doanhThu = data.map(item => item.doanhThu);
+
+                if (!chartToanBoRendered) {
+                    const ctx = document.getElementById('lineChartToanBo').getContext('2d');
+                    new Chart(ctx, {
+                        type: 'line',
+                        data: {
+                            labels: labels,
+                            datasets: [{
+                                label: 'Doanh thu theo ngày (VNĐ)',
+                                data: doanhThu,
+                                borderColor: 'yellow',
+                                backgroundColor: 'rgba(255,255,0,0.1)',
+                                tension: 0.3
+                            }]
+                        },
+                        options: {
+                            responsive: true,
+                            plugins: {
+                                legend: { display: true, position: 'top' },
+                                tooltip: {
+                                    callbacks: {
+                                        label: function (context) {
+                                            return context.dataset.label + ': ' +
+                                                context.formattedValue.replace(/\B(?=(\d{3})+(?!\d))/g, ",") + ' đ';
+                                        }
+                                    }
+                                }
+                            },
+                            scales: {
+                                x: { title: { display: true, text: 'Ngày' } },
+                                y: { beginAtZero: true, title: { display: true, text: 'Doanh thu (VNĐ)' } }
+                            }
+                        }
+                    });
+
+                    chartToanBoRendered = true;
+                }
+
+                const tongDoanhThu = data.reduce((sum, item) => sum + item.doanhThu, 0);
+                const tongDon = data.reduce((sum, item) => sum + (item.soDon || 0), 0);
+                const tongMon = data.reduce((sum, item) => sum + (item.soMon || 0), 0);
+                updateStatistics(tongDon, tongMon, tongDoanhThu);
+            });
+    });
+
+    function loadTopSanPham() {
+        fetch('/product_Controller/TopSanPhamBanChay') 
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById('topSanPhamBody');
+                tbody.innerHTML = ''; 
+
+                data.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    row.classList.add('text-center');
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td class="text-start">${item.tenSanPham}</td>
+                        <td>${item.tongDaBan}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            });
+    }
+    document.addEventListener('DOMContentLoaded', loadTopSanPham);
+
+    function loadTopKhachHang() {
+        fetch('/product_Controller/TopKhachHang')
+            .then(res => res.json())
+            .then(data => {
+                const tbody = document.getElementById('topKhachHangBody');
+                tbody.innerHTML = '';
+
+                data.forEach((item, index) => {
+                    const row = document.createElement('tr');
+                    row.classList.add('text-center');
+                    row.innerHTML = `
+                        <td>${index + 1}</td>
+                        <td class="text-start">${item.tenKhach}</td>
+                        <td>${item.tongDaMua}</td>
+                    `;
+                    tbody.appendChild(row);
+                });
+            });
+    }
+
+    document.addEventListener('DOMContentLoaded', loadTopKhachHang);
+</script>
+

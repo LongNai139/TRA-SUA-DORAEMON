@@ -1,0 +1,87 @@
+﻿@using DIHA.Menu
+@inject AdminSidebarService _AdminSidebarService
+
+@{
+    Layout = "/Views/Shared/_LayoutAdmin.cshtml";
+    ViewData["Title"] = "Admin Control Panel";
+}
+
+<h2 class="mb-4">Quản trị website</h2>
+<p>Chào mừng bạn đến với trang quản trị!</p>
+
+<div class="row">
+    @if (_AdminSidebarService.Items != null && _AdminSidebarService.Items.Any(i =>
+    !string.IsNullOrEmpty(i.Title) &&
+    ((i.Items != null && i.Items.Any()) || (!string.IsNullOrEmpty(i.Controller) && !string.IsNullOrEmpty(i.Action)))))
+    {
+        @foreach (var item in _AdminSidebarService.Items.Where(i =>
+       !string.IsNullOrEmpty(i.Title) &&
+       ((i.Items != null && i.Items.Any()) || (!string.IsNullOrEmpty(i.Controller) && !string.IsNullOrEmpty(i.Action)))))
+        {
+            <div class="col-md-4 mb-4">
+                <div class="card shadow-sm">
+                    <div class="card-body">
+                        <h5 class="card-title">
+                            <i class="@item.AwesomeIcon"></i> @item.Title
+                        </h5>
+                        @if (item.Items != null && item.Items.Any())
+                        {
+                            <ul class="list-group list-group-flush">
+                                @foreach (var subItem in item.Items)
+                                {
+                                    <li class="list-group-item">
+                                        @if (subItem.Title == "Tạo danh mục")
+                                        {
+                                            <a href="@Url.Action("Index", "Category", new { area = "Category", openModal = "true" })">
+                                                @subItem.Title
+                                            </a>
+                                        }
+                                        else if (subItem.Title == "Tạo sản phẩm")
+                                        {
+                                            <a href="@Url.Action("Index", "Product", new { area = "Product", openModal = "true" })">
+                                                @subItem.Title
+                                            </a>
+                                        }
+                                        else
+                                        {
+                                            <a href="@Url.Action(subItem.Action, subItem.Controller, new { area = subItem.Area })">
+                                                @subItem.Title
+                                            </a>
+                                        }
+                                    </li>
+                                }
+                            </ul>
+                        }
+                        else if (!string.IsNullOrEmpty(item.Controller) && !string.IsNullOrEmpty(item.Action))
+                        {
+                            <a href="@Url.Action(item.Action, item.Controller, new { area = item.Area })" class="btn btn-primary mt-2">
+                                Truy cập
+                            </a>
+                        }
+                    </div>
+                </div>
+            </div>
+        }
+    }
+    else
+    {
+        <div class="col-12">
+            <p class="text-muted text-center">Không có mục nào để hiển thị.</p>
+        </div>
+    }
+</div>
+
+<style>
+    .card {
+        border-radius: 10px;
+        transition: transform 0.2s ease-in-out;
+    }
+
+        .card:hover {
+            transform: scale(1.05);
+        }
+
+    .card-title i {
+        margin-right: 10px;
+    }
+</style>

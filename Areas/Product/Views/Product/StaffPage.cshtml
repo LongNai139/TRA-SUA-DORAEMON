@@ -1,0 +1,249 @@
+﻿@using Microsoft.EntityFrameworkCore
+@using System.Data
+@using DIHA.Areas.Category.Models.Data
+@using DIHA.Areas.Product.Models.Data
+@model List<SanPham>
+
+@inject AppDbContext dbContext
+@{
+    ViewData["Title"] = "Thong tin sản phẩm";
+    var connect = dbContext.Database.GetDbConnection();
+    var dbname = connect.Database;
+    var canconnect = dbContext.Database.CanConnect();
+}
+
+@if (!canconnect)
+{
+    <p class="alert alert-danger">Không có khả năng kết nối tới database</p>
+}
+@if (ViewBag.ErrorMessage != null)
+{
+    <p class="text-danger">@ViewBag.ErrorMessage</p>
+}
+
+@if (canconnect)
+{
+    <style>
+        .product-card {
+        background: #f9f9f7;
+        border-radius: 12px;
+        padding: 16px;
+        display: flex;
+        justify-content: space-between;
+        align-items: center;
+        margin-bottom: 1rem;
+        }
+
+        .product-image {
+        width: 80px;
+        height: 80px;
+        border-radius: 8px;
+        object-fit: cover;
+        }
+
+        .summary-card {
+        background: #f9f9f7;
+        border-radius: 12px;
+        padding: 20px;
+        }
+
+        .basket-button {
+        background-color: #476520;
+        color: white;
+        }
+
+        .btn-outline-secondary {
+            padding: 0 6px;
+            font-size: 0.75rem;
+        }
+    </style>
+    <h1>Order</h1>
+    <hr>
+
+    <div class="row">
+        <div class="col-md-8">
+            <div class="btn-group mb-3">
+                @foreach (var item in ViewBag.DanhmucSelectList)
+                {
+                    <button class="btn btn-outline-success" onclick="filter('@item.Value')" data-category="@item.Value">@item.Text</button>
+                }
+                <button class="btn btn-outline-success" onclick="filter('all')" data-category ="all">Tất cả</button>
+            </div>
+            <div class="row">
+                @foreach (var product in Model)
+                {
+                    <div class="col-md-6 mb-3 product @product.IDDanhMuc"
+                         onclick="selectProduct('@product.TenSanpham', '@(Convert.ToDecimal(product.DonGia).ToString("N0"))')">
+                        <div class="product-card">
+                            <img src="@(string.IsNullOrEmpty(product.Anh) ? "/image/default.jpg" : product.Anh)" alt="@product.TenSanpham" class="product-image">
+                            <div class="flex-fill ms-3">
+                                <div><strong>@product.TenSanpham</strong></div>
+                                <div class="text-success">@(Convert.ToDecimal(product.DonGia).ToString("N0"))₫</div>
+                                <button class="btn btn-outline-secondary btn-sm mt-1">đơn vị tính</button>
+                            </div>
+                        <div class="fw-bold">@(Convert.ToDecimal(product.DonGia).ToString("N0"))₫</div>
+                    </div>
+                </div>
+                }
+            </div>
+        </div>
+
+        <div class="col-md-4">
+            <div class="summary-card">
+                <h5>Order summary</h5>
+                <div id="selectedProductArea" class="mb-2 text-muted">
+                    <i>Chưa chọn sản phẩm</i>
+                </div>
+                <ul id="cartItems" class="list-unstyled small"></ul>
+                <hr>
+                <div class="d-flex justify-content-between fw-bold">
+                    <span>Total</span>
+                    <span id="Total"></span></div>
+                <button class="btn basket-button w-100 mt-3" onclick="showPaymentOptions()">Continue to payment →</button>
+            </div>
+        </div>
+    </div>
+   
+}
+<script>
+    function filter(category) {
+        let items = document.querySelectorAll('.product');
+        items.forEach(item => {
+            if (category === 'all' || item.classList.contains(category)) {
+                item.style.display = 'block';
+            } else {
+                item.style.display = 'none';
+            }
+        });
+
+        document.querySelectorAll('.btn-group button').forEach(btn => btn.classList.remove('active'));
+        const activeBtn = document.querySelector(`button[data-category="${category}"]`);
+        if (activeBtn) activeBtn.classList.add('active');
+    }
+
+    let cart = [];
+
+    function parseMoney(str) {
+        return parseInt(str.replace(/[₫,.]/g, ''), 10);
+    }
+
+    function formatMoney(num) {
+        return num.toLocaleString('vi-VN') + "₫";
+    }
+
+    function selectProduct(tenSanPham, giaStr) {
+        const gia = parseMoney(giaStr);
+        let existing = cart.find(p => p.tenSanPham === tenSanPham);
+        if (existing) {
+            existing.soluong++;
+        } else {
+            cart.push({ tenSanPham, gia, soluong: 1 });
+        }
+        updateCartDisplay();
+    }
+
+    function updateCartDisplay() {
+        const cartList = document.getElementById("cartItems");
+        const productArea = document.getElementById("selectedProductArea");
+        cartList.innerHTML = "";
+
+        let total = 0;
+
+        if (cart.length > 0) {
+            productArea.style.display = "none";
+        } else {
+            productArea.style.display = "block";
+        }
+
+        cart.forEach((p, index) => {
+            const thanhTien = p.gia * p.soluong;
+            total += thanhTien;
+
+            cartList.innerHTML += `
+                <li class="mb-2 d-flex justify-content-between align-items-center">
+                    <div>
+                        <strong>${p.tenSanPham}</strong><br />
+                        <small>${formatMoney(p.gia)} x ${p.soluong} = ${formatMoney(thanhTien)}</small>
+                    </div>
+                    <div>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="deleteQuantity(${index})">x</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="decreaseQuantity(${index})">–</button>
+                        <button class="btn btn-sm btn-outline-secondary" onclick="increaseQuantity(${index})">+</button>
+                    </div>
+                </li>
+            `;
+        });
+
+        document.getElementById("Total").textContent = formatMoney(total);
+    }
+
+
+    function increaseQuantity(index) {
+        cart[index].soluong++;
+        updateCartDisplay();
+    }
+
+    function decreaseQuantity(index) {
+        cart[index].soluong--;
+        if (cart[index].soluong <= 0) {
+            cart.splice(index, 1);
+        }
+        updateCartDisplay();
+    }
+
+    function deleteQuantity(index) {
+        cart.splice(index, 1);
+        updateCartDisplay();
+    }
+
+    function showPaymentOptions() {
+        Swal.fire({
+            title: 'Chọn phương thức thanh toán',
+            input: 'radio',
+            inputOptions: {
+                cash: 'Tiền mặt',
+                bank: 'Chuyển khoản'
+            },
+            inputValidator: (value) => {
+                if (!value) {
+                    return 'Bạn phải chọn một phương thức!';
+                }
+            },
+            confirmButtonText: 'Tiếp tục'
+        }).then((result) => {
+            if (result.isConfirmed) {
+                const selectedMethod = result.value;
+
+                Swal.fire({
+                    title: 'Chọn hình thức',
+                    input: 'radio',
+                    inputOptions: {
+                        onTheSpot: 'Tại quán',
+                        takeAway: 'Mang đi'
+                    },
+                    inputValidator: (value) => {
+                        if (!value) {
+                            return 'Bạn phải chọn một phương thức!';
+                        }
+                    },
+                }).then((placeResult) => {
+                    if (placeResult.isConfirmed) {
+                        Swal.fire({
+                            icon: 'success',
+                            title: 'Đặt hàng thành công',
+                            html: `<p><b>Cảm ơn bạn đã đặt hàng!</b></p>`,
+                            confirmButtonText: 'OK'
+                        }).then(() => {
+                            document.getElementById('paymentMethodInput').value = selectedMethod;
+                            document.getElementById('shippingAddressInput').value = addressResult.value.address;
+                            document.getElementById('shippingPhoneNumberInput').value = phoneNumberResult.value.phoneNumber;
+                            document.getElementById('invoiceForm').submit();
+                        });
+                    }
+                });
+            }
+        });
+
+    }
+</script>
+

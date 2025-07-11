@@ -1,0 +1,70 @@
+﻿@using Microsoft.AspNetCore.Identity
+@using DIHA.Models
+@using Microsoft.AspNetCore.Authorization
+@inject IAuthorizationService authorizationService
+
+@inject SignInManager<AppUser> SignInManager
+@inject UserManager<AppUser> UserManager
+
+<ul class="nav navbar-nav navbar-right">
+    <li class="nav-item dropdown">
+        <a class="nav-link dropdown-toggle" href="#" id="accountDropdown" role="button" data-bs-toggle="dropdown" aria-expanded="false">
+            <i class="fa fa-user"></i> Tài khoản
+        </a>
+        <ul class="dropdown-menu" aria-labelledby="accountDropdown">
+            @if (SignInManager.IsSignedIn(User))
+            {
+                // Kiểm tra quyền admin
+                var authResult = await authorizationService.AuthorizeAsync(User, "ViewManageMenu");
+
+                @if (authResult.Succeeded) // Nếu là admin
+                {
+                    <li>
+                        <a class="dropdown-item" asp-action="Index" asp-controller="AdminCP" asp-area="AdminCP">
+                            <i class="fa fa-gem"></i> Quản trị
+                        </a>
+                    </li>
+                }
+                else // Nếu không phải admin
+                {
+                    <li>
+                        <a class="dropdown-item" asp-area="Identity" asp-controller="Manage" asp-action="Index">
+                            <i class="fa fa-user"></i> Trang cá nhân
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="#">
+                            <i class="fa fa-basket"></i> Giỏ hàng
+                        </a>
+                    </li>
+                    <li>
+                        <a class="dropdown-item" href="#">
+                            <i class="fa fa-history"></i> Lịch sử mua hàng
+                        </a>
+                    </li>
+                }
+
+                <li>
+                    <form asp-area="Identity" asp-controller="Account" asp-action="LogOff" method="post">
+                        <button type="submit" class="dropdown-item">
+                            <i class="fa fa-sign-out-alt"></i> Thoát
+                        </button>
+                    </form>
+                </li>
+            }
+            else
+            {
+                <li>
+                    <a class="dropdown-item" asp-area="Identity" asp-controller="Account" asp-action="Login">
+                        <i class="fa fa-sign-in-alt"></i> Đăng nhập
+                    </a>
+                </li>
+                <li>
+                    <a class="dropdown-item" asp-area="Identity" asp-controller="Account" asp-action="Register">
+                        <i class="fa fa-edit"></i> Đăng ký
+                    </a>
+                </li>
+            }
+        </ul>
+    </li>
+</ul>
